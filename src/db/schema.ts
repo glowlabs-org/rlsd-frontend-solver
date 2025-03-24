@@ -62,7 +62,7 @@ export const QuoteGroup = pgTable("quote_group", {
   }).notNull(),
   powerOutput: decimal("power_output", { precision: 10, scale: 4 }).notNull(),
   systemSize: decimal("system_size", { precision: 10, scale: 4 }).notNull(),
-  zipCode: text("zip_code").notNull(),
+  zipCode: text("zip_code"),
   maximumElectricityPrice: decimal("maximum_electricity_price", {
     precision: 10,
     scale: 4,

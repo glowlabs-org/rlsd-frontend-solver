@@ -10,7 +10,8 @@ export default async function Home({
   };
 }) {
   let estimates: Estimate[] | null = null;
-  let zipCode: string | null = null;
+  let lat: number | null = null;
+  let long: number | null = null;
   let electricityPrice: number | null = null;
   let systemOutput: number | null = null;
   let isApproved: boolean = false;
@@ -25,7 +26,8 @@ export default async function Home({
     }));
     estimates = _estimates;
     scoutFee = parseFloat(group.scoutingFee);
-    zipCode = group.zipCode;
+    lat = parseFloat(group.lat);
+    long = parseFloat(group.lon);
     electricityPrice = parseFloat(group.electricityPrice);
     systemOutput = parseFloat(group.powerOutput);
     isApproved = group.approved;
@@ -38,7 +40,8 @@ export default async function Home({
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <View
         isApproved={isApproved}
-        zipCode={zipCode}
+        lat={lat}
+        long={long}
         electricityPrice={electricityPrice}
         systemOutput={systemOutput}
         estimates={estimatesMinusFees}

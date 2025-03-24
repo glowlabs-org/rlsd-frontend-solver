@@ -48,7 +48,8 @@ const Loader = () => {
 type DisplayState = "input" | "loading" | "result" | "error";
 type FormState = {
   electricityPrice: number;
-  zipCode: string;
+  lat: number;
+  long: number;
   systemOutput: number;
 };
 
@@ -59,10 +60,16 @@ type SingleState = {
   value: string | number | null;
   inputType: "number" | "text";
 };
-type StateKey = "electricityPrice" | "zipCode" | "systemSize" | "systemOutput";
+type StateKey =
+  | "electricityPrice"
+  | "lat"
+  | "long"
+  | "systemSize"
+  | "systemOutput";
 type Args = {
   estimates: Estimate[] | null;
-  zipCode: string | null;
+  lat: number | null;
+  long: number | null;
   electricityPrice: number | null;
   systemOutput: number | null;
   isApproved: boolean;
@@ -104,10 +111,11 @@ const View = (args: Args) => {
     electricityPrice: number,
     systemOutput: number,
     systemSize: number,
-    zipCode: string
+    lat: number,
+    long: number
   ) {
     const res = await fetch(
-      `/api/compute?electricityPrice=${electricityPrice}&powerOutput=${systemOutput}&systemSize=${systemSize}&zipCode=${zipCode}`
+      `/api/compute?electricityPrice=${electricityPrice}&powerOutput=${systemOutput}&systemSize=${systemSize}&lat=${lat}&long=${long}`
     );
     const data = (await res.json()) as {
       estimates: { estimate: number; timestamp: number }[];
@@ -115,6 +123,7 @@ const View = (args: Args) => {
       totalBudget: number;
     };
     console.log("Total Impact On Budget = ", data.totalBudget);
+    console.log({ data });
     //Router.push ?quoteGroupId
     router.push(`/?groupId=${data.quoteGroupId}`);
     return data;
@@ -127,12 +136,19 @@ const View = (args: Args) => {
       value: args.electricityPrice || 0.13,
       inputType: "number",
     },
-    zipCode: {
-      title: "Zip Code",
-      description: "This is the zip code of the location",
-      placeholder: "90210",
-      value: args.zipCode || "75173",
-      inputType: "text",
+    lat: {
+      title: "Latitude",
+      description: "The latitude coordinate of the location",
+      placeholder: "33.0137",
+      value: args.lat || 33.0137,
+      inputType: "number",
+    },
+    long: {
+      title: "Longitude",
+      description: "The longitude coordinate of the location",
+      placeholder: "-96.6984",
+      value: args.long || -96.6984,
+      inputType: "number",
     },
     systemSize: {
       title: "System Size (kW)",
@@ -154,7 +170,9 @@ const View = (args: Args) => {
     if (result <= 0) {
       return `${date.toLocaleDateString()} $0.00`;
     }
-    return `${date.toLocaleDateString()}: $${Number(result.toFixed(2)).toLocaleString()}`;
+    return `${date.toLocaleDateString()}: $${Number(
+      result.toFixed(2)
+    ).toLocaleString()}`;
   };
 
   const estimateMutationFN = async () => {
@@ -162,16 +180,17 @@ const View = (args: Args) => {
       getValues("electricityPrice") || initialState.electricityPrice.value;
     const systemOutputForm =
       getValues("systemOutput") || initialState.systemOutput.value;
-    const zipCodeForm =
-      getValues("zipCode") || (initialState.zipCode.value as string);
+    const latForm = getValues("lat") || initialState.lat.value;
+    const longForm = getValues("long") || initialState.long.value;
 
-    console.log({ electricityPriceForm, systemOutputForm, zipCodeForm });
+    console.log({ electricityPriceForm, systemOutputForm, latForm, longForm });
     const systemSize = initialState.systemSize.value;
     return await getEstimateFarmValue(
       electricityPriceForm as number,
       systemOutputForm as number,
       systemSize as number,
-      zipCodeForm
+      latForm as number,
+      longForm as number
     );
   };
   const estimateMutation = useMutation({
@@ -265,16 +284,31 @@ const View = (args: Args) => {
                   </p>
                 </div>
                 <div className="mt-4">
-                  <Label className="text-base font-normal">Zip Code</Label>
+                  <Label className="text-base font-normal">Latitude</Label>
                   <input
-                    type="text"
-                    defaultValue={initialState.zipCode.value as string}
+                    type="number"
+                    defaultValue={initialState.lat.value as number}
                     className="w-full h-10 border-b outline-none border-b-black  rounded-none "
-                    {...register("zipCode")}
+                    {...register("lat", { valueAsNumber: true })}
                   />
                   <p>
                     <small className="italic">
-                      {initialState.zipCode.description}
+                      {initialState.lat.description}
+                    </small>
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <Label className="text-base font-normal">Longitude</Label>
+                  <input
+                    type="number"
+                    defaultValue={initialState.long.value as number}
+                    className="w-full h-10 border-b outline-none border-b-black  rounded-none "
+                    {...register("long", { valueAsNumber: true })}
+                  />
+                  <p>
+                    <small className="italic">
+                      {initialState.long.description}
                     </small>
                   </p>
                 </div>
@@ -295,7 +329,6 @@ const View = (args: Args) => {
                       {initialState.systemOutput.description}
                     </small>
                   </p>
-                  {/* </div> */}
                 </div>
               </div>
               <Button
@@ -362,7 +395,9 @@ const View = (args: Args) => {
                             ).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-right">
-                            {`$${Number(estimate.estimate.toFixed(2)).toLocaleString()}`}
+                            {`$${Number(
+                              estimate.estimate.toFixed(2)
+                            ).toLocaleString()}`}
                           </TableCell>
                         </TableRow>
                       );

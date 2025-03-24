@@ -1,11 +1,10 @@
 import { elysiaClient } from "@/api/elysiaClient";
-import { getLatLongFromZip } from "@/api/extra/getLatLongFromZip";
 import { DEFAULT_INSTALL_FEE } from "@/constants";
 import { createQuoteGroup } from "@/db/queries";
 import { InsertQuoteGroup, InsertQuoteSingle } from "@/db/schema";
 // const DEFAULT_SCOUTING_FEE = 0.2;
 
-const startingDateTimestamp = 1718028000 - 86400 * 3;
+const startingDateTimestamp = Date.now() / 1000;
 export const getScoutingFee = (): number => {
   const scoutingFee = process.env.SCOUTING_FEE;
   if (!scoutingFee) throw new Error("process.env.SCOUTING_FEE is not defined");
@@ -15,13 +14,13 @@ export const getScoutingFee = (): number => {
   return float;
 };
 const formulaConstants = {
-  maximumElectricityPrice: 0.5,
-  protocolFeeValueMultiplier: 3,
+  maximumElectricityPrice: 0.093,
+  protocolFeeValueMultiplier: 1.5,
   startingDateTimestamp: startingDateTimestamp,
   //   targetTimestamp: startingDateTimestamp + 86400 * 7 * 4, //it's starting date + 4 weeks
-  decayPerDay: 0.0055, //.55%,
+  decayPerDay: 0.0005, //.05%,
   scoutingFee: getScoutingFee(),
-  protocolFeeInterestRate: 0.11,
+  protocolFeeInterestRate: 0.055, // 5.5%,
 };
 
 type EstimateFarmValueArgs = {
@@ -39,7 +38,8 @@ type EstimateProtocolFeeArgs = {
 type RunEstimationArgs = {
   powerOutputKWHPerYear: number;
   electricityPricePerKWH: number;
-  zipCode: string;
+  lat: number;
+  long: number;
 };
 
 type FarmValueEstimateAndTimestamp = {
@@ -76,19 +76,18 @@ class FarmEstimator {
   public static async runEstimation(args: RunEstimationArgs) {
     const farmValueEstimtesAndTimestamps: FarmValueEstimateAndTimestamp[] = [];
     const startTimestamp = formulaConstants.startingDateTimestamp;
-    const { lat, lon: long } = await getLatLongFromZip(args.zipCode);
 
     const res = await elysiaClient.protocolFees.sunlightAndCertificates.get({
       $query: {
-        latitude: lat.toString(),
-        longitude: long.toString(),
+        latitude: args.lat.toString(),
+        longitude: args.long.toString(),
       },
     });
 
     if (!res.data?.average_carbon_certificates)
       throw new Error("No Carbon Certificate Data");
     const carbonCreditEffectiveness = res.data?.average_carbon_certificates!;
-
+    console.log({ carbonCreditEffectiveness });
     for (let i = 0; ; ++i) {
       const timestampToBenchmark = startTimestamp + 86400 * 14 * i;
       let estimate = this.estimateFarmValue({
@@ -96,6 +95,15 @@ class FarmEstimator {
         timestampToBenchmark,
         electricityPricePerKWH: args.electricityPricePerKWH,
         carbonCreditEffectiveness: carbonCreditEffectiveness,
+      });
+      console.log({
+        estimate,
+        args: {
+          powerOutputKWHPerYear: args.powerOutputKWHPerYear,
+          timestampToBenchmark,
+          electricityPricePerKWH: args.electricityPricePerKWH,
+          carbonCreditEffectiveness: carbonCreditEffectiveness,
+        },
       });
       //Push
 
@@ -111,11 +119,12 @@ class FarmEstimator {
       }
     }
     const protocolFees = this.estimateProtocolFees(args);
+    console.log({ protocolFees });
     return {
       farmValueEstimtesAndTimestamps,
       protocolFees,
-      lat,
-      long,
+      lat: args.lat,
+      long: args.long,
       carbonCreditEffectiveness,
     };
   }
@@ -125,21 +134,26 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const powerOutputKWHPerYear = searchParams.get("powerOutput");
   const electricityPricePerKWH = searchParams.get("electricityPrice");
-  const zipCode = searchParams.get("zipCode");
+  const lat = searchParams.get("lat");
+  const long = searchParams.get("long");
+
   if (!powerOutputKWHPerYear) throw new Error("powerOutput is required");
   if (!electricityPricePerKWH) throw new Error("electricityPrice is required");
-  if (!zipCode) throw new Error("zipCode is required");
+  if (!lat) throw new Error("lat is required");
+  if (!long) throw new Error("long is required");
+
   const args: RunEstimationArgs = {
     powerOutputKWHPerYear: parseFloat(powerOutputKWHPerYear!),
     electricityPricePerKWH: parseFloat(electricityPricePerKWH!),
-    zipCode: zipCode!,
+    lat: parseFloat(lat!),
+    long: parseFloat(long!),
   };
 
   const {
     farmValueEstimtesAndTimestamps,
     protocolFees,
-    lat,
-    long,
+    lat: resultLat,
+    long: resultLong,
     carbonCreditEffectiveness,
   } = await FarmEstimator.runEstimation(args);
   const quotes: InsertQuoteSingle[] = farmValueEstimtesAndTimestamps.map(
@@ -154,7 +168,7 @@ export async function GET(request: Request) {
     electricityPrice: args.electricityPricePerKWH.toFixed(4),
     powerOutput: args.powerOutputKWHPerYear.toFixed(4),
     systemSize: (44.14).toFixed(4),
-    zipCode: zipCode,
+    zipCode: "", // Empty string as we no longer use zip code
     maximumElectricityPrice:
       formulaConstants.maximumElectricityPrice.toFixed(4),
     protocolFeeValueMultiplier:
@@ -163,8 +177,8 @@ export async function GET(request: Request) {
     targetTimestamp: formulaConstants.startingDateTimestamp.toFixed(4),
     decayPerDay: formulaConstants.decayPerDay.toFixed(4),
     scoutingFee: formulaConstants.scoutingFee.toFixed(4),
-    lat: lat.toFixed(4),
-    lon: long.toFixed(4),
+    lat: args.lat.toFixed(4),
+    lon: args.long.toFixed(4),
     carbonCreditEffectiveness: carbonCreditEffectiveness.toFixed(4),
     protocolFees: protocolFees.toFixed(4),
     installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),

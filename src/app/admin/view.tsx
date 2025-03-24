@@ -96,10 +96,10 @@ const View = () => {
         {findGroupQuery.isLoading
           ? "Loading..."
           : findGroupQuery.isError
-            ? "Error"
-            : findGroupQuery.isSuccess
-              ? "Success"
-              : "Search"}
+          ? "Error"
+          : findGroupQuery.isSuccess
+          ? "Success"
+          : "Search"}
       </Button>
 
       {findGroupQuery.data && (
@@ -109,14 +109,16 @@ const View = () => {
               <TableRow>
                 <TableHead>Electricity Price</TableHead>
                 <TableHead>Power Output</TableHead>
-                <TableHead>Zip Code</TableHead>
+                <TableHead>Latitude</TableHead>
+                <TableHead>Longitude</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow>
                 <TableCell>{findGroupQuery.data?.electricityPrice}</TableCell>
                 <TableCell>{findGroupQuery.data?.powerOutput}</TableCell>
-                <TableCell>{findGroupQuery.data?.zipCode}</TableCell>
+                <TableCell>{findGroupQuery.data?.lat}</TableCell>
+                <TableCell>{findGroupQuery.data?.lon}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -205,10 +207,10 @@ const View = () => {
         {approveQuoteGroupMutation.isPending
           ? "Loading..."
           : approveQuoteGroupMutation.isError
-            ? "Error"
-            : approveQuoteGroupMutation.isSuccess
-              ? "Success"
-              : "Approve"}
+          ? "Error"
+          : approveQuoteGroupMutation.isSuccess
+          ? "Success"
+          : "Approve"}
       </Button>
     </div>
   );

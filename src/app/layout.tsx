@@ -9,8 +9,8 @@ import { Toaster } from "@/components/ui/sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RLSD Quoter",
-  description: "A simple app to calculate RLSD Quotes",
+  title: "DPS Quoter",
+  description: "A simple app to calculate DPS Quotes",
 };
 
 export default function RootLayout({
