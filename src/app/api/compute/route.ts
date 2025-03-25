@@ -14,7 +14,7 @@ export const getScoutingFee = (): number => {
   return float;
 };
 const formulaConstants = {
-  maximumElectricityPrice: 0.093,
+  maximumElectricityPrice: 0.097, // 9.7 cents
   protocolFeeValueMultiplier: 1.5,
   startingDateTimestamp: startingDateTimestamp,
   //   targetTimestamp: startingDateTimestamp + 86400 * 7 * 4, //it's starting date + 4 weeks
