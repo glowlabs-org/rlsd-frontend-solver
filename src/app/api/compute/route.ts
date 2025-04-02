@@ -202,7 +202,7 @@ export async function GET(request: Request) {
   // Calculate the minimum electricity price needed for profitability
   // This is a simplified calculation based on the carbon credit effectiveness
   const minimumElectricityPrice =
-    carbonCreditEffectiveness * formulaConstants.maximumElectricityPrice * 0.9; // 95% of the theoretical maximum
+    carbonCreditEffectiveness * formulaConstants.maximumElectricityPrice;
   const res = {
     estimates: amountsAndQuoteGroupsToSendToFrontend,
     quoteGroupId,
