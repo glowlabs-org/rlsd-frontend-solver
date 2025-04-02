@@ -7,6 +7,7 @@ import {
   timestamp,
   uniqueIndex,
   decimal,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { eq, relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -60,7 +61,7 @@ export const QuoteGroup = pgTable("quote_group", {
     precision: 10,
     scale: 4,
   }).notNull(),
-  powerOutput: decimal("power_output", { precision: 10, scale: 4 }).notNull(),
+  powerOutput: bigint("power_output", { mode: "number" }).notNull(),
   systemSize: decimal("system_size", { precision: 10, scale: 4 }).notNull(),
   zipCode: text("zip_code"),
   maximumElectricityPrice: decimal("maximum_electricity_price", {
@@ -91,12 +92,12 @@ export const QuoteGroup = pgTable("quote_group", {
     precision: 12,
     scale: 4,
   }).notNull(),
-  protocolFees: decimal("protocol_fees", { precision: 14, scale: 4 }).notNull(),
+  protocolFees: bigint("protocol_fees", { mode: "number" }).notNull(),
 });
 
 export const QuoteSingle = pgTable("quote", {
   id: serial("id").primaryKey(),
-  quote: decimal("quote", { precision: 10, scale: 4 }).notNull(),
+  quote: bigint("quote", { mode: "number" }).notNull(),
   timestampToBenchmark: decimal("timestamp_to_benchmark", {
     precision: 15,
     scale: 0,

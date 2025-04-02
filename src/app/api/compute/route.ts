@@ -63,14 +63,14 @@ class FarmEstimator {
       formulaConstants.protocolFeeValueMultiplier *
       formulaConstants.protocolFeeInterestRate;
     const answer = c / d;
-    return answer;
+    return Math.ceil(answer);
   }
 
   public static estimateProtocolFees(args: EstimateProtocolFeeArgs) {
     const pricePerKwh = 1 / formulaConstants.protocolFeeInterestRate;
     const cost =
       args.electricityPricePerKWH * args.powerOutputKWHPerYear * pricePerKwh;
-    return cost;
+    return Math.ceil(cost);
   }
 
   public static async runEstimation(args: RunEstimationArgs) {
@@ -158,15 +158,15 @@ export async function GET(request: Request) {
   } = await FarmEstimator.runEstimation(args);
   const quotes: InsertQuoteSingle[] = farmValueEstimtesAndTimestamps.map(
     ({ estimate, timestamp }) => ({
-      quote: estimate.toFixed(4),
+      quote: estimate,
       timestampToBenchmark: timestamp.toString(),
       installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),
     })
   );
-
+  console.log({ formulaConstants });
   const group: InsertQuoteGroup = {
     electricityPrice: args.electricityPricePerKWH.toFixed(4),
-    powerOutput: args.powerOutputKWHPerYear.toFixed(4),
+    powerOutput: args.powerOutputKWHPerYear,
     systemSize: (44.14).toFixed(4),
     zipCode: "", // Empty string as we no longer use zip code
     maximumElectricityPrice:
@@ -180,10 +180,10 @@ export async function GET(request: Request) {
     lat: args.lat.toFixed(4),
     lon: args.long.toFixed(4),
     carbonCreditEffectiveness: carbonCreditEffectiveness.toFixed(4),
-    protocolFees: protocolFees.toFixed(4),
+    protocolFees: protocolFees,
     installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),
   };
-
+  console.log({ group });
   const { quoteGroupId } = await createQuoteGroup({
     quotes,
     group,
@@ -191,7 +191,7 @@ export async function GET(request: Request) {
 
   const firstQuote = farmValueEstimtesAndTimestamps[0];
   const totalBudget = firstQuote.estimate + protocolFees + DEFAULT_INSTALL_FEE;
-
+  console.log({ totalBudget, firstQuote });
   const amountsAndQuoteGroupsToSendToFrontend = farmValueEstimtesAndTimestamps
     .map(({ estimate, timestamp }) => ({
       timestamp: timestamp,
@@ -199,11 +199,17 @@ export async function GET(request: Request) {
     }))
     .filter(({ estimate }) => estimate > 0);
 
+  // Calculate the minimum electricity price needed for profitability
+  // This is a simplified calculation based on the carbon credit effectiveness
+  const minimumElectricityPrice =
+    carbonCreditEffectiveness * formulaConstants.maximumElectricityPrice * 0.9; // 95% of the theoretical maximum
   const res = {
     estimates: amountsAndQuoteGroupsToSendToFrontend,
     quoteGroupId,
     protocolFees: protocolFees,
     totalBudget,
+    currentElectricityPrice: args.electricityPricePerKWH,
+    recommendedMaxElectricityPrice: minimumElectricityPrice,
   };
   return Response.json({ ...res });
 }

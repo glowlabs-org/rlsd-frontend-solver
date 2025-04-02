@@ -147,13 +147,11 @@ const View = () => {
                     ).toLocaleDateString()}
                   </TableCell>
 
-                  <TableCell>
-                    ${parseFloat(quote.quote!).toLocaleString()}
-                  </TableCell>
+                  <TableCell>${quote.quote!.toLocaleString()}</TableCell>
                   <TableCell>
                     $
                     {parseFloat(
-                      findGroupQuery.data?.protocolFees
+                      findGroupQuery.data?.protocolFees.toString()
                     ).toLocaleString()}
                   </TableCell>
 
@@ -166,8 +164,8 @@ const View = () => {
                   <TableCell>
                     $
                     {(
-                      parseFloat(quote.quote!) +
-                      parseFloat(findGroupQuery.data?.protocolFees) +
+                      quote.quote! +
+                      findGroupQuery.data?.protocolFees +
                       parseFloat(findGroupQuery.data?.installFixedFee)
                     ).toLocaleString()}
                   </TableCell>
@@ -175,7 +173,7 @@ const View = () => {
                   <TableCell>
                     $
                     {(
-                      parseFloat(quote.quote!) *
+                      quote.quote! *
                       parseFloat(findGroupQuery.data?.scoutingFee)
                     ).toLocaleString()}
                   </TableCell>
@@ -183,7 +181,7 @@ const View = () => {
                   <TableCell>
                     $
                     {(
-                      parseFloat(quote.quote!) *
+                      quote.quote! *
                       (1 - parseFloat(findGroupQuery.data?.scoutingFee!))
                     ).toLocaleString()}
                   </TableCell>

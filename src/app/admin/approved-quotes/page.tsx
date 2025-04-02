@@ -15,7 +15,7 @@ const Page = async () => {
     await getApprovedQuoteGroups();
   const totalScoutFee =
     approvedQuoteGroups.reduce((acc, group) => {
-      return acc + parseFloat(group.quoteGroup.quotes[0].quote);
+      return acc + group.quoteGroup.quotes[0].quote;
     }, 0) * getScoutingFee();
 
   const totalApproved = await db.query.TotalBudgetGranted.findFirst({});

@@ -87,8 +87,8 @@ export async function approveQuoteGroup(id: number) {
       },
     });
     if (!quoteGroupId) throw new Error("Quote group not found");
-    const firstQuoteAmount = parseFloat(quoteGroupId.quotes[0].quote!);
-    const protocolFee = parseFloat(quoteGroupId.protocolFees);
+    const firstQuoteAmount = quoteGroupId.quotes[0].quote!;
+    const protocolFee = quoteGroupId.protocolFees;
 
     await tx.insert(ApprovedQuoteGroup).values({
       quoteGroupId: id,
@@ -102,7 +102,9 @@ export async function approveQuoteGroup(id: number) {
       .onConflictDoUpdate({
         target: TotalBudgetGranted.id,
         set: {
-          amount: sql`${TotalBudgetGranted.amount} + ${firstQuoteAmount + protocolFee + INSTALLER_FEE}`,
+          amount: sql`${TotalBudgetGranted.amount} + ${
+            firstQuoteAmount + protocolFee + INSTALLER_FEE
+          }`,
         },
       });
   });

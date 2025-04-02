@@ -22,14 +22,14 @@ export default async function Home({
     if (!group) return;
     const _estimates = group.quotes.map((quote) => ({
       timestamp: parseInt(quote.timestampToBenchmark),
-      estimate: parseFloat(quote.quote!),
+      estimate: quote.quote!,
     }));
     estimates = _estimates;
     scoutFee = parseFloat(group.scoutingFee);
     lat = parseFloat(group.lat);
     long = parseFloat(group.lon);
     electricityPrice = parseFloat(group.electricityPrice);
-    systemOutput = parseFloat(group.powerOutput);
+    systemOutput = parseFloat(group.powerOutput.toString());
     isApproved = group.approved;
   }
   const estimatesMinusFees = estimates?.map((estimate) => ({

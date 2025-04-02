@@ -47,10 +47,7 @@ const View = ({
                 <TableRow>
                   <TableCell>{quoteGroup.quoteGroupId}</TableCell>
                   <TableCell>
-                    $
-                    {parseFloat(
-                      quoteGroup.quoteGroup.quotes[0].quote!
-                    ).toLocaleString()}
+                    ${quoteGroup.quoteGroup.quotes[0].quote!.toLocaleString()}
                   </TableCell>
                   <TableCell>
                     ${Number(quoteGroup.quoteGroup.protocolFees).toFixed(2)}
@@ -62,8 +59,10 @@ const View = ({
                   <TableCell>
                     $
                     {(
-                      parseFloat(quoteGroup.quoteGroup.quotes[0].quote!) +
-                      parseFloat(quoteGroup.quoteGroup.protocolFees) +
+                      quoteGroup.quoteGroup.quotes[0].quote! +
+                      parseFloat(
+                        quoteGroup.quoteGroup.protocolFees.toString()
+                      ) +
                       parseFloat(quoteGroup.quoteGroup.installFixedFee)
                     ).toLocaleString()}
                   </TableCell>
@@ -71,7 +70,7 @@ const View = ({
                   <TableCell>
                     $
                     {(
-                      parseFloat(quoteGroup.quoteGroup.quotes[0].quote!) *
+                      quoteGroup.quoteGroup.quotes[0].quote! *
                       parseFloat(quoteGroup.quoteGroup.scoutingFee)
                     ).toLocaleString()}
                   </TableCell>
@@ -79,7 +78,7 @@ const View = ({
                   <TableCell>
                     $
                     {(
-                      parseFloat(quoteGroup.quoteGroup.quotes[0].quote!) *
+                      quoteGroup.quoteGroup.quotes[0].quote! *
                       (1 - parseFloat(quoteGroup.quoteGroup.scoutingFee))
                     ).toLocaleString()}
                   </TableCell>

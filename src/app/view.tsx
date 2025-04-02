@@ -121,6 +121,8 @@ const View = (args: Args) => {
       estimates: { estimate: number; timestamp: number }[];
       quoteGroupId: number;
       totalBudget: number;
+      recommendedMaxElectricityPrice: number;
+      currentElectricityPrice: number;
     };
     console.log("Total Impact On Budget = ", data.totalBudget);
     console.log({ data });
@@ -133,21 +135,21 @@ const View = (args: Args) => {
       title: "Electricity Price ($Per kWh)",
       description: "This is the price of electricity per kWh",
       placeholder: ".25",
-      value: args.electricityPrice || 0.13,
+      value: args.electricityPrice,
       inputType: "number",
     },
     lat: {
       title: "Latitude",
       description: "The latitude coordinate of the location",
       placeholder: "33.0137",
-      value: args.lat || 33.0137,
+      value: args.lat,
       inputType: "number",
     },
     long: {
       title: "Longitude",
       description: "The longitude coordinate of the location",
       placeholder: "-96.6984",
-      value: args.long || -96.6984,
+      value: args.long,
       inputType: "number",
     },
     systemSize: {
@@ -161,18 +163,9 @@ const View = (args: Args) => {
       title: "System Output (kWh)",
       description: "This is the output of the solar system in kWh per year",
       placeholder: "500",
-      value: args.systemOutput || 20_000,
+      value: args.systemOutput,
       inputType: "number",
     },
-  };
-
-  const textToShowForResult = (result: number, date: Date) => {
-    if (result <= 0) {
-      return `${date.toLocaleDateString()} $0.00`;
-    }
-    return `${date.toLocaleDateString()}: $${Number(
-      result.toFixed(2)
-    ).toLocaleString()}`;
   };
 
   const estimateMutationFN = async () => {
@@ -232,6 +225,7 @@ const View = (args: Args) => {
     return estimateMutation.data?.estimates || args.estimates;
   };
 
+  console.log({ estimateMutation });
   return (
     <>
       <div className="flex flex-col  justify-center gap-y-4">
@@ -241,9 +235,9 @@ const View = (args: Args) => {
               <FaChevronCircleLeft
                 onClick={() => {
                   setDisplayState("input");
-                  router.push("/");
+                  router.replace("/");
                 }}
-                className="absolute   size-5 left-2 cursor-pointer"
+                className="absolute size-5 left-2 cursor-pointer"
               />
             )}
             {/* <p>logo</p> */}
@@ -271,6 +265,7 @@ const View = (args: Args) => {
                     Electricity Price ($Per kWh)
                   </Label>
                   <input
+                    placeholder={initialState.electricityPrice.placeholder}
                     defaultValue={initialState.electricityPrice.value as number}
                     onKeyDown={checkIfNumber}
                     type="number"
@@ -286,6 +281,7 @@ const View = (args: Args) => {
                 <div className="mt-4">
                   <Label className="text-base font-normal">Latitude</Label>
                   <input
+                    placeholder={initialState.lat.placeholder}
                     type="number"
                     defaultValue={initialState.lat.value as number}
                     className="w-full h-10 border-b outline-none border-b-black  rounded-none "
@@ -301,6 +297,7 @@ const View = (args: Args) => {
                 <div className="mt-4">
                   <Label className="text-base font-normal">Longitude</Label>
                   <input
+                    placeholder={initialState.long.placeholder}
                     type="number"
                     defaultValue={initialState.long.value as number}
                     className="w-full h-10 border-b outline-none border-b-black  rounded-none "
@@ -318,6 +315,7 @@ const View = (args: Args) => {
                     System Output (kWh)
                   </Label>
                   <input
+                    placeholder={initialState.systemOutput.placeholder}
                     defaultValue={initialState.systemOutput.value as number}
                     onKeyDown={checkIfNumber}
                     type="number"
@@ -358,53 +356,119 @@ const View = (args: Args) => {
               </div>
               <div className="border-b h-[1px] border-black w-full" />
               {/**If the length is 0, have a message to contact admin */}
-              {estimateMutation.data?.estimates.length === 0 && (
-                <p className={`border p-2 text-sm rounded-lg mt-1`}>
-                  Please contact the admin to reset the estimates
-                </p>
-              )}
-              <div>
-                <Table className="">
-                  <TableCaption>
+              {estimateMutation.data?.estimates.length === 0 ||
+              getEstimates()?.length === 0 ? (
+                <>
+                  <div className="p-4 border border-amber-300 bg-amber-50 rounded-lg m-3">
+                    <h3 className="font-medium text-amber-800 mb-2">
+                      Not Profitable at Current Rates
+                    </h3>
+                    <p className="text-sm text-amber-700 mb-2">
+                      Based on your inputs, this solar installation would not
+                      generate rewards.
+                    </p>
+                    {estimateMutation.data?.recommendedMaxElectricityPrice && (
+                      <p className="text-sm text-amber-700">
+                        <strong>Recommendation:</strong> For this location to be
+                        profitable, electricity prices should be below{" "}
+                        <strong>
+                          $
+                          {Number(
+                            estimateMutation.data.recommendedMaxElectricityPrice
+                          ).toFixed(4)}
+                        </strong>{" "}
+                        per kWh.
+                      </p>
+                    )}
+                  </div>
+                  <div className="p-4 flex flex-col gap-2">
+                    {estimateMutation.data?.estimates &&
+                      estimateMutation.data?.estimates.length > 0 && (
+                        <Button onClick={copyToClipboard} className="w-full">
+                          {copiedToClipboard
+                            ? "Copied to clipboard"
+                            : "Copy link to clipboard"}
+                        </Button>
+                      )}
                     <Button
-                      //Copy to clipboard and toast
-                      onClick={copyToClipboard}
+                      variant="outline"
+                      onClick={() => {
+                        setDisplayState("input");
+                        router.replace("/");
+                      }}
                       className="w-full"
                     >
-                      {copiedToClipboard
-                        ? "Copied to clipboard"
-                        : "Copy link to clipboard"}
+                      Try New Farm
                     </Button>
-                  </TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[100px]">Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {getEstimates()!.map((estimate, index) => {
-                      return (
-                        <TableRow
-                          className="border-black "
-                          key={estimate.timestamp}
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <Table className="">
+                    <TableCaption>
+                      <div className="flex flex-col gap-2">
+                        <Button onClick={copyToClipboard} className="w-full">
+                          {copiedToClipboard
+                            ? "Copied to clipboard"
+                            : "Copy link to clipboard"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setDisplayState("input");
+                            router.replace("/");
+                          }}
+                          className="w-full"
                         >
-                          <TableCell>
-                            {new Date(
-                              estimate.timestamp * 1000
-                            ).toLocaleDateString()}
-                          </TableCell>
+                          Try New Farm
+                        </Button>
+                      </div>
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[100px]">Date</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {getEstimates()!.map((estimate, index) => {
+                        return (
+                          <TableRow
+                            className="border-black "
+                            key={estimate.timestamp}
+                          >
+                            <TableCell>
+                              {new Date(
+                                estimate.timestamp * 1000
+                              ).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {`$${Number(
+                                estimate.estimate.toFixed(2)
+                              ).toLocaleString()}`}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {getEstimates() && getEstimates()!.length > 1 && (
+                        <TableRow className="font-bold border-t-2 border-black">
+                          <TableCell>Total</TableCell>
                           <TableCell className="text-right">
                             {`$${Number(
-                              estimate.estimate.toFixed(2)
+                              getEstimates()!
+                                .reduce(
+                                  (sum, estimate) => sum + estimate.estimate,
+                                  0
+                                )
+                                .toFixed(2)
                             ).toLocaleString()}`}
                           </TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </>
           )}
         </div>
