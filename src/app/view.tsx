@@ -450,21 +450,6 @@ const View = (args: Args) => {
                           </TableRow>
                         );
                       })}
-                      {getEstimates() && getEstimates()!.length > 1 && (
-                        <TableRow className="font-bold border-t-2 border-black">
-                          <TableCell>Total</TableCell>
-                          <TableCell className="text-right">
-                            {`$${Number(
-                              getEstimates()!
-                                .reduce(
-                                  (sum, estimate) => sum + estimate.estimate,
-                                  0
-                                )
-                                .toFixed(2)
-                            ).toLocaleString()}`}
-                          </TableCell>
-                        </TableRow>
-                      )}
                     </TableBody>
                   </Table>
                 </div>
