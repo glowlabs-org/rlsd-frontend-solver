@@ -172,11 +172,32 @@ export async function GET(request: Request) {
     if (!lat) throw new Error("lat is required");
     if (!long) throw new Error("long is required");
 
+    // Parse and validate numeric values
+    const parsedPowerOutput = parseFloat(powerOutputKWHPerYear);
+    const parsedElectricityPrice = parseFloat(electricityPricePerKWH);
+    const parsedLat = parseFloat(lat);
+    const parsedLong = parseFloat(long);
+
+    // Check for NaN values after parsing
+    if (isNaN(parsedPowerOutput))
+      throw new Error("powerOutput must be a valid number");
+    if (isNaN(parsedElectricityPrice))
+      throw new Error("electricityPrice must be a valid number");
+    if (isNaN(parsedLat)) throw new Error("lat must be a valid number");
+    if (isNaN(parsedLong)) throw new Error("long must be a valid number");
+
+    console.log({
+      powerOutputKWHPerYear: parsedPowerOutput,
+      electricityPricePerKWH: parsedElectricityPrice,
+      lat: parsedLat,
+      long: parsedLong,
+    });
+
     const args: RunEstimationArgs = {
-      powerOutputKWHPerYear: parseFloat(powerOutputKWHPerYear!),
-      electricityPricePerKWH: parseFloat(electricityPricePerKWH!),
-      lat: parseFloat(lat!),
-      long: parseFloat(long!),
+      powerOutputKWHPerYear: parsedPowerOutput,
+      electricityPricePerKWH: parsedElectricityPrice,
+      lat: parsedLat,
+      long: parsedLong,
     };
 
     const {

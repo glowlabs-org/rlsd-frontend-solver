@@ -114,21 +114,39 @@ const View = (args: Args) => {
     lat: number,
     long: number
   ) {
-    const res = await fetch(
-      `/api/compute?electricityPrice=${electricityPrice}&powerOutput=${systemOutput}&systemSize=${systemSize}&lat=${lat}&long=${long}`
-    );
-    const data = (await res.json()) as {
-      estimates: { estimate: number; timestamp: number }[];
-      quoteGroupId: number;
-      totalBudget: number;
-      recommendedMaxElectricityPrice: number;
-      currentElectricityPrice: number;
-    };
-    console.log("Total Impact On Budget = ", data.totalBudget);
-    console.log({ data });
-    //Router.push ?quoteGroupId
-    router.push(`/?groupId=${data.quoteGroupId}`);
-    return data;
+    try {
+      const res = await fetch(
+        `/api/compute?electricityPrice=${electricityPrice}&powerOutput=${systemOutput}&systemSize=${systemSize}&lat=${lat}&long=${long}`
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage =
+          errorData.message || `Error: ${res.status} ${res.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const data = (await res.json()) as {
+        estimates: { estimate: number; timestamp: number }[];
+        quoteGroupId: number;
+        totalBudget: number;
+        recommendedMaxElectricityPrice: number;
+        currentElectricityPrice: number;
+      };
+
+      console.log("Total Impact On Budget = ", data.totalBudget);
+      console.log({ data });
+
+      //Router.push ?quoteGroupId
+      router.push(`/?groupId=${data.quoteGroupId}`);
+      return data;
+    } catch (error) {
+      console.error("Failed to get estimate:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to calculate estimate"
+      );
+      throw error; // Re-throw to be handled by the mutation error handler
+    }
   }
   const initialState: State = {
     electricityPrice: {
@@ -167,6 +185,10 @@ const View = (args: Args) => {
       inputType: "number",
     },
   };
+
+  const [formattedSystemOutput, setFormattedSystemOutput] = useState<string>(
+    args.systemOutput ? args.systemOutput.toLocaleString() : ""
+  );
 
   const estimateMutationFN = async () => {
     const electricityPriceForm =
@@ -316,11 +338,25 @@ const View = (args: Args) => {
                   </Label>
                   <input
                     placeholder={initialState.systemOutput.placeholder}
-                    defaultValue={initialState.systemOutput.value as number}
-                    onKeyDown={checkIfNumber}
-                    type="number"
-                    className="w-full h-10 border-b outline-none border-b-black  rounded-none "
-                    {...register("systemOutput", { valueAsNumber: true })}
+                    value={formattedSystemOutput}
+                    onChange={(e) => {
+                      // Remove all non-digit characters for processing
+                      const rawValue = e.target.value.replace(/[^\d]/g, "");
+
+                      // Format with commas for display
+                      const formatted = rawValue
+                        ? parseInt(rawValue).toLocaleString()
+                        : "";
+                      setFormattedSystemOutput(formatted);
+
+                      // Set the actual numeric value in the form
+                      setValue(
+                        "systemOutput",
+                        rawValue ? parseInt(rawValue) : 0,
+                        { shouldValidate: true }
+                      );
+                    }}
+                    className="w-full h-10 border-b outline-none border-b-black rounded-none"
                   />
                   <p>
                     <small className="italic">
