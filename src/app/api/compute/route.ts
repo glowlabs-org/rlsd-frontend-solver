@@ -4,6 +4,31 @@ import { createQuoteGroup } from "@/db/queries";
 import { InsertQuoteGroup, InsertQuoteSingle } from "@/db/schema";
 // const DEFAULT_SCOUTING_FEE = 0.2;
 
+// Rate limiting implementation
+const RATE_LIMIT = 1; // 1 request per second
+const RATE_WINDOW = 1000; // 1 second in milliseconds
+let lastRequestTimestamp = 0;
+let requestCount = 0;
+
+// Rate limiter function
+function checkRateLimit() {
+  const now = Date.now();
+
+  // Reset counter if we're in a new time window
+  if (now - lastRequestTimestamp > RATE_WINDOW) {
+    lastRequestTimestamp = now;
+    requestCount = 0;
+  }
+
+  // Check if we've exceeded the rate limit
+  if (requestCount >= RATE_LIMIT) {
+    throw new Error("Rate limit exceeded. Please try again later.");
+  }
+
+  // Increment the counter
+  requestCount++;
+}
+
 const startingDateTimestamp = Date.now() / 1000;
 export const getScoutingFee = (): number => {
   const scoutingFee = process.env.SCOUTING_FEE;
@@ -131,85 +156,106 @@ class FarmEstimator {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const powerOutputKWHPerYear = searchParams.get("powerOutput");
-  const electricityPricePerKWH = searchParams.get("electricityPrice");
-  const lat = searchParams.get("lat");
-  const long = searchParams.get("long");
+  try {
+    // Apply rate limiting
+    checkRateLimit();
 
-  if (!powerOutputKWHPerYear) throw new Error("powerOutput is required");
-  if (!electricityPricePerKWH) throw new Error("electricityPrice is required");
-  if (!lat) throw new Error("lat is required");
-  if (!long) throw new Error("long is required");
+    const { searchParams } = new URL(request.url);
+    const powerOutputKWHPerYear = searchParams.get("powerOutput");
+    const electricityPricePerKWH = searchParams.get("electricityPrice");
+    const lat = searchParams.get("lat");
+    const long = searchParams.get("long");
 
-  const args: RunEstimationArgs = {
-    powerOutputKWHPerYear: parseFloat(powerOutputKWHPerYear!),
-    electricityPricePerKWH: parseFloat(electricityPricePerKWH!),
-    lat: parseFloat(lat!),
-    long: parseFloat(long!),
-  };
+    if (!powerOutputKWHPerYear) throw new Error("powerOutput is required");
+    if (!electricityPricePerKWH)
+      throw new Error("electricityPrice is required");
+    if (!lat) throw new Error("lat is required");
+    if (!long) throw new Error("long is required");
 
-  const {
-    farmValueEstimtesAndTimestamps,
-    protocolFees,
-    lat: resultLat,
-    long: resultLong,
-    carbonCreditEffectiveness,
-  } = await FarmEstimator.runEstimation(args);
-  const quotes: InsertQuoteSingle[] = farmValueEstimtesAndTimestamps.map(
-    ({ estimate, timestamp }) => ({
-      quote: estimate,
-      timestampToBenchmark: timestamp.toString(),
+    const args: RunEstimationArgs = {
+      powerOutputKWHPerYear: parseFloat(powerOutputKWHPerYear!),
+      electricityPricePerKWH: parseFloat(electricityPricePerKWH!),
+      lat: parseFloat(lat!),
+      long: parseFloat(long!),
+    };
+
+    const {
+      farmValueEstimtesAndTimestamps,
+      protocolFees,
+      lat: resultLat,
+      long: resultLong,
+      carbonCreditEffectiveness,
+    } = await FarmEstimator.runEstimation(args);
+    const quotes: InsertQuoteSingle[] = farmValueEstimtesAndTimestamps.map(
+      ({ estimate, timestamp }) => ({
+        quote: estimate,
+        timestampToBenchmark: timestamp.toString(),
+        installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),
+      })
+    );
+    console.log({ formulaConstants });
+    const group: InsertQuoteGroup = {
+      electricityPrice: args.electricityPricePerKWH.toFixed(4),
+      powerOutput: args.powerOutputKWHPerYear,
+      systemSize: (44.14).toFixed(4),
+      zipCode: "", // Empty string as we no longer use zip code
+      maximumElectricityPrice:
+        formulaConstants.maximumElectricityPrice.toFixed(4),
+      protocolFeeValueMultiplier:
+        formulaConstants.protocolFeeValueMultiplier.toFixed(4),
+      startingDateTimestamp: formulaConstants.startingDateTimestamp.toFixed(4),
+      targetTimestamp: formulaConstants.startingDateTimestamp.toFixed(4),
+      decayPerDay: formulaConstants.decayPerDay.toFixed(4),
+      scoutingFee: formulaConstants.scoutingFee.toFixed(4),
+      lat: args.lat.toFixed(4),
+      lon: args.long.toFixed(4),
+      carbonCreditEffectiveness: carbonCreditEffectiveness.toFixed(4),
+      protocolFees: protocolFees,
       installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),
-    })
-  );
-  console.log({ formulaConstants });
-  const group: InsertQuoteGroup = {
-    electricityPrice: args.electricityPricePerKWH.toFixed(4),
-    powerOutput: args.powerOutputKWHPerYear,
-    systemSize: (44.14).toFixed(4),
-    zipCode: "", // Empty string as we no longer use zip code
-    maximumElectricityPrice:
-      formulaConstants.maximumElectricityPrice.toFixed(4),
-    protocolFeeValueMultiplier:
-      formulaConstants.protocolFeeValueMultiplier.toFixed(4),
-    startingDateTimestamp: formulaConstants.startingDateTimestamp.toFixed(4),
-    targetTimestamp: formulaConstants.startingDateTimestamp.toFixed(4),
-    decayPerDay: formulaConstants.decayPerDay.toFixed(4),
-    scoutingFee: formulaConstants.scoutingFee.toFixed(4),
-    lat: args.lat.toFixed(4),
-    lon: args.long.toFixed(4),
-    carbonCreditEffectiveness: carbonCreditEffectiveness.toFixed(4),
-    protocolFees: protocolFees,
-    installFixedFee: DEFAULT_INSTALL_FEE.toFixed(4),
-  };
-  console.log({ group });
-  const { quoteGroupId } = await createQuoteGroup({
-    quotes,
-    group,
-  });
+    };
+    console.log({ group });
+    const { quoteGroupId } = await createQuoteGroup({
+      quotes,
+      group,
+    });
 
-  const firstQuote = farmValueEstimtesAndTimestamps[0];
-  const totalBudget = firstQuote.estimate + protocolFees + DEFAULT_INSTALL_FEE;
-  console.log({ totalBudget, firstQuote });
-  const amountsAndQuoteGroupsToSendToFrontend = farmValueEstimtesAndTimestamps
-    .map(({ estimate, timestamp }) => ({
-      timestamp: timestamp,
-      estimate: estimate * (1 - formulaConstants.scoutingFee),
-    }))
-    .filter(({ estimate }) => estimate > 0);
+    const firstQuote = farmValueEstimtesAndTimestamps[0];
+    const totalBudget =
+      firstQuote.estimate + protocolFees + DEFAULT_INSTALL_FEE;
+    console.log({ totalBudget, firstQuote });
+    const amountsAndQuoteGroupsToSendToFrontend = farmValueEstimtesAndTimestamps
+      .map(({ estimate, timestamp }) => ({
+        timestamp: timestamp,
+        estimate: estimate * (1 - formulaConstants.scoutingFee),
+      }))
+      .filter(({ estimate }) => estimate > 0);
 
-  // Calculate the minimum electricity price needed for profitability
-  // This is a simplified calculation based on the carbon credit effectiveness
-  const minimumElectricityPrice =
-    carbonCreditEffectiveness * formulaConstants.maximumElectricityPrice;
-  const res = {
-    estimates: amountsAndQuoteGroupsToSendToFrontend,
-    quoteGroupId,
-    protocolFees: protocolFees,
-    totalBudget,
-    currentElectricityPrice: args.electricityPricePerKWH,
-    recommendedMaxElectricityPrice: minimumElectricityPrice,
-  };
-  return Response.json({ ...res });
+    // Calculate the minimum electricity price needed for profitability
+    // This is a simplified calculation based on the carbon credit effectiveness
+    const minimumElectricityPrice =
+      carbonCreditEffectiveness * formulaConstants.maximumElectricityPrice;
+    const res = {
+      estimates: amountsAndQuoteGroupsToSendToFrontend,
+      quoteGroupId,
+      protocolFees: protocolFees,
+      totalBudget,
+      currentElectricityPrice: args.electricityPricePerKWH,
+      recommendedMaxElectricityPrice: minimumElectricityPrice,
+    };
+    return Response.json({ ...res });
+  } catch (error) {
+    console.error("API Error:", error);
+    return Response.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      {
+        status:
+          error instanceof Error && error.message.includes("Rate limit")
+            ? 429
+            : 500,
+      }
+    );
+  }
 }
